@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-dotnet
+  namespace: apps
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1       # Spins up 1 new temporary container during rollout before shutting down old code
+      maxUnavailable: 0 # Ensures absolute zero downtime by keeping minimum replica thresholds satisfied
+  selector:
+    matchLabels:
+      app: backend-dotnet
+  template:
+    metadata:
+      labels:
+        app: backend-dotnet
+        metrics: enabled
+    spec:
+      containers:
+      - name: dotnet-app
+        image: docker.io/yourhubusername/backend-dotnet:latest
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          requests:
+            cpu: "100m"   # Crucial baseline metrics mapping required by the HPA engine
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: postgres-password
+        - name: ConnectionStrings__DefaultConnection
+          value: "Host=postgres-service;Database=appdb;Username=postgres;Password=$(DB_PASSWORD)"
+        - name: Kafka__BootstrapServers
+          value: "kafka-service:9092"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: apps
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: backend-dotnet

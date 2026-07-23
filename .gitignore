@@ -1,0 +1,20 @@
+# Log files
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node.js dependencies (Angular & Worker)
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+
+# .NET build outputs and environment variables
+bin/
+obj/
+.vs/
+.idea/
+*.user
+appsettings.Development.json

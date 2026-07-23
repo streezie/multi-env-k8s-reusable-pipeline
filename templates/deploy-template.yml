@@ -1,0 +1,37 @@
+parameters:
+  - name: environmentName
+    type: string
+  - name: k8sServiceConnection
+    type: string
+  - name: manifestDirectory
+    type: string
+  - name: imageTag
+    type: string
+
+stages:
+- stage: Deploy_${{ parameters.environmentName }}
+  displayName: Deploy to ${{ parameters.environmentName }}
+  jobs:
+  - deployment: DeployJob
+    displayName: Deploy Microservices
+    environment: ${{ parameters.environmentName }}
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: KubernetesManifest@1
+            displayName: Deploy Segmented Production Architecture Manifests
+            inputs:
+              action: 'deploy'
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceConnection: ${{ parameters.k8sServiceConnection }}
+              namespace: 'apps'
+              manifests: '${{ parameters.manifestDirectory }}/*.yml' # Tracks, gathers, and provisions all yaml parameters sequentially
+              containers: |
+                docker.io/yourhubusername/frontend-angular:${{ parameters.imageTag }}
+                docker.io/yourhubusername/backend-dotnet:${{ parameters.imageTag }}
+                docker.io/yourhubusername/worker-node:${{ parameters.imageTag }}

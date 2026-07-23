@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-node
+  namespace: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-node
+  template:
+    metadata:
+      labels:
+        app: worker-node
+    spec:
+      containers:
+      - name: node-worker
+        image: docker.io/yourhubusername/worker-node:latest
+        env:
+        - name: KAFKA_BROKER
+          value: "kafka-service:9092"
