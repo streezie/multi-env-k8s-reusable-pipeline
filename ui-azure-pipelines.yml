@@ -1,3 +1,13 @@
+parameters:
+  - name: targetEnvironment
+    displayName: 'Select Target Deployment Environment'
+    type: string
+    default: 'Dev'
+    allowedValues:
+      - Dev
+      - Staging
+      - Production
+
 trigger:
   - main
 
@@ -6,6 +16,23 @@ variables:
     value: 'DockerHubConnection'
   - name: imageTag
     value: '$(Build.BuildId)'
+  
+  # Matrix configuration variables mapped directly from the UI dropdown choice
+  - ${{ if eq(parameters.targetEnvironment, 'Dev') }}:
+    - name: currentK8sConnection
+      value: 'K8s-Dev-Cluster-Connection'
+    - name: currentManifestDir
+      value: 'k8s/base'
+  - ${{ if eq(parameters.targetEnvironment, 'Staging') }}:
+    - name: currentK8sConnection
+      value: 'K8s-Staging-Cluster-Connection'
+    - name: currentManifestDir
+      value: 'k8s/base'
+  - ${{ if eq(parameters.targetEnvironment, 'Production') }}:
+    - name: currentK8sConnection
+      value: 'K8s-Prod-Cluster-Connection'
+    - name: currentManifestDir
+      value: 'k8s/base'
 
 stages:
 - stage: BuildAndPush
@@ -42,44 +69,13 @@ stages:
         Dockerfile: 'worker/Dockerfile'
         tags: '$(imageTag)'
 
-- stage: DevDeployment
-  displayName: Dev Environment
+- stage: SelectedEnvironmentDeployment
+  displayName: 'Deploying Selected Target Environment'
   dependsOn: BuildAndPush
-  variables:
-    - name: k8sConnection
-      value: 'K8s-Dev-Cluster-Connection'
   jobs:
-  - template: templates/deploy-template.yml
+  - template: templates/deploy-template.yml # Calls the same reusable template file
     parameters:
-      environmentName: 'Dev'
-      k8sServiceConnection: '$(k8sConnection)'
-      manifestDirectory: 'k8s/base'
-      imageTag: '$(imageTag)'
-
-- stage: StagingDeployment
-  displayName: Staging Environment
-  dependsOn: DevDeployment
-  variables:
-    - name: k8sConnection
-      value: 'K8s-Staging-Cluster-Connection'
-  jobs:
-  - template: templates/deploy-template.yml
-    parameters:
-      environmentName: 'Staging'
-      k8sServiceConnection: '$(k8sConnection)'
-      manifestDirectory: 'k8s/base'
-      imageTag: '$(imageTag)'
-
-- stage: ProdDeployment
-  displayName: Production Environment
-  dependsOn: StagingDeployment
-  variables:
-    - name: k8sConnection
-      value: 'K8s-Prod-Cluster-Connection'
-  jobs:
-  - template: templates/deploy-template.yml
-    parameters:
-      environmentName: 'Production'
-      k8sServiceConnection: '$(k8sConnection)'
-      manifestDirectory: 'k8s/base'
+      environmentName: '${{ parameters.targetEnvironment }}' 
+      k8sServiceConnection: '$(currentK8sConnection)'        
+      manifestDirectory: '$(currentManifestDir)'              
       imageTag: '$(imageTag)'
