@@ -1,0 +1,57 @@
+trigger:
+  - main
+
+variables:
+  - name: dockerRegistryServiceConnection
+    value: 'DockerHubConnection'
+  - name: imageTag
+    value: '$(Build.BuildId)'
+
+stages:
+- stage: BuildAndPush
+  displayName: Build & Push to DockerHub
+  jobs:
+  - job: BuildJob
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: Docker@2
+      displayName: Build and Push Angular Frontend
+      inputs:
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        repository: 'yourhubusername/frontend-angular'
+        command: 'buildAndPush'
+        Dockerfile: 'frontend/Dockerfile'
+        tags: '$(imageTag)'
+
+    - task: Docker@2
+      displayName: Build and Push .NET Backend
+      inputs:
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        repository: 'yourhubusername/backend-dotnet'
+        command: 'buildAndPush'
+        Dockerfile: 'backend/Dockerfile'
+        tags: '$(imageTag)'
+
+    - task: Docker@2
+      displayName: Build and Push Node.js Worker
+      inputs:
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        repository: 'yourhubusername/worker-node'
+        command: 'buildAndPush'
+        Dockerfile: 'worker/Dockerfile'
+        tags: '$(imageTag)'
+
+- stage: DevDeployment
+  displayName: Dev Environment
+  dependsOn: BuildAndPush
+  variables:
+    - name: k8sConnection
+      value: 'K8s-Dev-Cluster-Connection'
+  jobs:
+  - template: templates/deploy-template.yml
+    parameters:
+      environmentName: 'Dev'
+      k8sServiceConnection: '$(k8sConnection)'
+      manifestDirectory: 'k8s/base'
+      imageTag: '$(imageTag)'
